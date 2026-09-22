@@ -18,4 +18,3 @@ func TestAdvanceCompletesJob(t *testing.T) {
 		t.Fatalf("completion = %#v", j)
 	}
 }
-

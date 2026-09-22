@@ -1,0 +1,26 @@
+name: dvd-ntsc-qtgmc-hevc
+
+video:
+  width: 720
+  height: 480
+  fps: 60000/1001
+  pixel_format: yuv420p10le
+
+source:
+  field_order: tff
+
+vapoursynth:
+  script: qtgmc.vpy
+
+encoder:
+  codec: libx265
+  preset: medium
+  crf: 16
+
+audio:
+  mode: copy
+subtitles:
+  mode: copy
+chapters:
+  mode: copy
+

@@ -25,4 +25,3 @@ func Scan(root string) ([]string, error) {
 	sort.Strings(files)
 	return files, nil
 }
-

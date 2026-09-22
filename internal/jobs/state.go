@@ -5,12 +5,12 @@ import "time"
 type Status string
 
 const (
-	Queued     Status = "queued"
-	Preparing  Status = "preparing"
-	Running    Status = "running"
-	Completed  Status = "completed"
-	Failed     Status = "failed"
-	Cancelled  Status = "cancelled"
+	Queued      Status = "queued"
+	Preparing   Status = "preparing"
+	Running     Status = "running"
+	Completed   Status = "completed"
+	Failed      Status = "failed"
+	Cancelled   Status = "cancelled"
 	Interrupted Status = "interrupted"
 )
 
@@ -52,4 +52,3 @@ func (j Job) Advance(now time.Time) Job {
 	}
 	return j
 }
-
