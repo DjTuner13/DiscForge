@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/djranoia/discforge/internal/archive"
 	"github.com/djranoia/discforge/internal/jobs"
+	"github.com/djranoia/discforge/internal/probe"
 	"github.com/djranoia/discforge/internal/state"
 )
 
 type tickMsg time.Time
+type probeMsg struct {
+	path  string
+	media probe.Media
+	err   error
+}
 
 type Model struct {
 	root       string
@@ -37,6 +44,7 @@ type Model struct {
 	logText    string
 	input      textarea.Model
 	store      state.Store
+	media      map[string]probe.Media
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs"}
@@ -57,7 +65,7 @@ func NewModel(root string) Model {
 	t.Prompt = "/ "
 	t.CharLimit = 128
 	store := state.Default()
-	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store}
+	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}}
 	if snapshot, err := store.Load(); err == nil {
 		m.jobs = snapshot.Jobs
 		if len(m.jobs) > 0 {
@@ -97,6 +105,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, tick()
+	case probeMsg:
+		if msg.err != nil {
+			m.status = fmt.Sprintf("ffprobe failed: %v", msg.err)
+			return m, nil
+		}
+		m.media[msg.path] = msg.media
+		audio, subtitles := msg.media.StreamCounts()
+		m.status = fmt.Sprintf("%s · %.1fs · %d audio · %d subtitles", filepath.Base(msg.path), msg.media.DurationSeconds(), audio, subtitles)
+		return m, nil
 	case tea.KeyMsg:
 		if m.search {
 			var cmd tea.Cmd
@@ -148,7 +165,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if key.Matches(msg, m.keys.Open) {
-			m.open()
+			return m, m.open()
 		}
 		if key.Matches(msg, m.keys.Select) && m.tab == 0 && len(m.files) > 0 {
 			m.selected[m.cursor] = !m.selected[m.cursor]
@@ -205,13 +222,25 @@ func (m Model) filteredFiles() []string {
 	return result
 }
 
-func (m *Model) open() {
+func (m *Model) open() tea.Cmd {
 	if m.tab == 0 && len(m.files) > 0 {
 		m.status = "Selected archive master — press space, then r to queue"
+		path := m.filteredFiles()[m.cursor]
+		if _, ok := m.media[path]; !ok {
+			return probeFile(path)
+		}
 	}
 	if m.tab == 1 && len(m.jobs) > 0 {
 		m.tab = 2
 		m.activeJob = m.cursor
+	}
+	return nil
+}
+
+func probeFile(path string) tea.Cmd {
+	return func() tea.Msg {
+		media, err := (probe.Runner{}).Inspect(context.Background(), path)
+		return probeMsg{path: path, media: media, err: err}
 	}
 }
 
@@ -278,6 +307,16 @@ func (m Model) viewBody() string {
 				line = lipgloss.NewStyle().Background(lipgloss.Color("236")).Render(line)
 			}
 			b.WriteString(line + "\n")
+		}
+		if m.cursor < len(files) {
+			if media, ok := m.media[files[m.cursor]]; ok {
+				for _, stream := range media.Streams {
+					if stream.CodecType == "video" {
+						b.WriteString(fmt.Sprintf("\nVideo  %s  %dx%d  %s  %s", stream.CodecName, stream.Width, stream.Height, stream.RFrameRate, stream.FieldOrder))
+						break
+					}
+				}
+			}
 		}
 		return boxStyle.Render(b.String())
 	case 1:
