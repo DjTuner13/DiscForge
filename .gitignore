@@ -1,4 +1,4 @@
-discforge
+/discforge
 bin/
 dist/
 tmp/
@@ -9,4 +9,3 @@ tmp/
 !.env.example
 .coverage/
 coverage.out
-
