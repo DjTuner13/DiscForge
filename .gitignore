@@ -1,0 +1,12 @@
+discforge
+bin/
+dist/
+tmp/
+*.log
+*.partial
+.env
+.env.*
+!.env.example
+.coverage/
+coverage.out
+
