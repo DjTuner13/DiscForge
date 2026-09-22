@@ -1,10 +1,13 @@
 package pipeline
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGuardedRunnerRejectsArchiveWritesAndOverwrite(t *testing.T) {
@@ -23,5 +26,14 @@ func TestGuardedRunnerRejectsArchiveWritesAndOverwrite(t *testing.T) {
 	}
 	if err := runner.ValidateOutput("source.mkv", existing); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("overwrite error = %v", err)
+	}
+}
+
+func TestRunnerHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	err := (GuardedRunner{}).Run(ctx, Command{Name: "sleep", Args: []string{"1"}}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected cancellation error")
 	}
 }

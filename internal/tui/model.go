@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/djranoia/discforge/internal/archive"
 	"github.com/djranoia/discforge/internal/jobs"
+	"github.com/djranoia/discforge/internal/state"
 )
 
 type tickMsg time.Time
@@ -35,6 +36,7 @@ type Model struct {
 	status     string
 	logText    string
 	input      textarea.Model
+	store      state.Store
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs"}
@@ -54,7 +56,16 @@ func NewModel(root string) Model {
 	t := textarea.New()
 	t.Prompt = "/ "
 	t.CharLimit = 128
-	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t}
+	store := state.Default()
+	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store}
+	if snapshot, err := store.Load(); err == nil {
+		m.jobs = snapshot.Jobs
+		if len(m.jobs) > 0 {
+			m.activeJob = 0
+		}
+	} else {
+		m.status = fmt.Sprintf("state unavailable: %v", err)
+	}
 	if files, err := archive.Scan(root); err == nil {
 		m.files = files
 		m.status = fmt.Sprintf("%d archive master(s) found", len(files))
@@ -80,6 +91,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.jobs[m.activeJob] = m.jobs[m.activeJob].Advance(time.Time(msg))
 			if m.jobs[m.activeJob].Status == jobs.Completed {
 				m.status = "Restoration complete — ready for Sonarr"
+			}
+			if err := m.store.Save(state.Snapshot{Jobs: m.jobs}); err != nil {
+				m.status = fmt.Sprintf("state save failed: %v", err)
 			}
 		}
 		return m, tick()
@@ -214,6 +228,9 @@ func (m *Model) queueSelected() {
 		m.activeJob = 0
 		m.tab = 1
 		m.status = "Queued fake restoration — no media commands are connected"
+		if err := m.store.Save(state.Snapshot{Jobs: m.jobs}); err != nil {
+			m.status = fmt.Sprintf("state save failed: %v", err)
+		}
 	}
 }
 

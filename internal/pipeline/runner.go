@@ -52,3 +52,10 @@ func (r GuardedRunner) Run(ctx context.Context, command Command, logWriter io.Wr
 	cmd.Stdout, cmd.Stderr = logWriter, logWriter
 	return cmd.Run()
 }
+
+func (r GuardedRunner) RunSafe(ctx context.Context, input, output string, command Command, logWriter io.Writer) error {
+	if err := r.ValidateOutput(input, output); err != nil {
+		return err
+	}
+	return r.Run(ctx, command, logWriter)
+}
