@@ -13,6 +13,7 @@ type Validation struct {
 	ExpectedHeight     int
 	ExpectedAudio      int
 	ExpectedSubtitles  int
+	ExpectedChapters   int
 	ExpectedDuration   float64
 	DurationTolerance  float64
 }
@@ -50,6 +51,9 @@ func ValidateOutput(path string, source, output probe.Media, rules Validation) e
 	}
 	if subs != rules.ExpectedSubtitles {
 		return fmt.Errorf("subtitle streams %d, want %d", subs, rules.ExpectedSubtitles)
+	}
+	if rules.ExpectedChapters > 0 && len(output.Chapters) != rules.ExpectedChapters {
+		return fmt.Errorf("chapters %d, want %d", len(output.Chapters), rules.ExpectedChapters)
 	}
 	if rules.ExpectedDuration > 0 && abs(output.DurationSeconds()-rules.ExpectedDuration) > rules.DurationTolerance {
 		return fmt.Errorf("duration %.3fs is outside tolerance", output.DurationSeconds())
