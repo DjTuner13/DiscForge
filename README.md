@@ -28,6 +28,12 @@ DISCFORGE_ARCHIVE_ROOT=/path/to/archive go run ./cmd/discforge
 Override the local state file during development with
 `DISCFORGE_STATE_FILE=/tmp/discforge-state.json`.
 
+Equivalent flags are available:
+
+```sh
+go run ./cmd/discforge --archive-root /mnt/archive --state-file /tmp/discforge-state.json
+```
+
 Use `j`/`k` to move, `h`/`l` to switch views, `Enter` to open, `Space` to
 select, `r` to queue a fake restoration, `?` for help, and `q` to quit.
 
