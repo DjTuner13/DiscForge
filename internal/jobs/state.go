@@ -8,6 +8,8 @@ const (
 	Queued      Status = "queued"
 	Preparing   Status = "preparing"
 	Running     Status = "running"
+	Muxing      Status = "muxing"
+	Validating  Status = "validating"
 	Completed   Status = "completed"
 	Failed      Status = "failed"
 	Cancelled   Status = "cancelled"

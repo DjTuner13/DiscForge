@@ -44,7 +44,7 @@ func (s Store) Load() (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	for i := range snapshot.Jobs {
-		if snapshot.Jobs[i].Status == jobs.Preparing || snapshot.Jobs[i].Status == jobs.Running {
+		if snapshot.Jobs[i].Status == jobs.Preparing || snapshot.Jobs[i].Status == jobs.Running || snapshot.Jobs[i].Status == jobs.Muxing || snapshot.Jobs[i].Status == jobs.Validating {
 			snapshot.Jobs[i].Status = jobs.Interrupted
 		}
 	}
