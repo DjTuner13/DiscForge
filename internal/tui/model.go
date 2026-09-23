@@ -443,6 +443,7 @@ func (m *Model) runNext() tea.Cmd {
 				m.jobs[i].TotalFrames = estimateFrames(media)
 			}
 		}
+		m.activeJob = i
 		m.running = true
 		m.jobs[i].Status = jobs.Running
 		m.jobs[i].StartedAt = time.Now()
