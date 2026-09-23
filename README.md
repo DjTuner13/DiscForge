@@ -60,6 +60,14 @@ select, `r` to queue a restoration, `?` for help, and `q` to quit. Without
 `--live`, queued jobs are simulated. With `--live`, `r` starts the real
 executor and writes process output to the per-job log directory.
 
+On the processing server, set the external tool paths before launching live
+mode:
+
+```sh
+export DISCFORGE_VSPIPE=/home/dj/src/viva-remaster/.venv/bin/vspipe
+export DISCFORGE_FFMPEG=/usr/bin/ffmpeg
+```
+
 ## Project plan
 
 See [PLAN.md](PLAN.md) for the architecture, safety requirements, and phased

@@ -183,6 +183,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showHelp = true
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.Back) && m.tab == 2 {
+			m.tab = 1
+			m.cursor = m.activeJob
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Left) {
 			m.tab = (m.tab + len(tabs) - 1) % len(tabs)
 			m.cursor = 0
