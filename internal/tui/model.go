@@ -171,10 +171,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.search {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
-			if key.Matches(msg, m.keys.Back) || key.Matches(msg, m.keys.Open) {
+			if key.Matches(msg, m.keys.Back) {
 				m.search = false
-				m.searchTerm = m.input.Value()
 				m.input.Reset()
+				return m, cmd
+			}
+			if key.Matches(msg, m.keys.Open) {
+				m.search = false
+				m.searchTerm = strings.TrimSpace(m.input.Value())
+				m.input.Reset()
+				m.cursor = 0
 				return m, cmd
 			}
 			return m, cmd
@@ -327,11 +333,12 @@ func (m Model) historyIndices() []int {
 
 func (m Model) filteredFiles() []string {
 	var result []string
+	term := strings.ToLower(strings.TrimSpace(m.searchTerm))
 	for _, f := range m.files {
 		if !m.matchesLibraryFilter(f) {
 			continue
 		}
-		if m.searchTerm == "" || strings.Contains(strings.ToLower(f), strings.ToLower(m.searchTerm)) {
+		if term == "" || strings.Contains(strings.ToLower(f), term) {
 			result = append(result, f)
 		}
 	}
@@ -367,9 +374,17 @@ func (m Model) matchesLibraryFilter(path string) bool {
 }
 
 func (m *Model) open() tea.Cmd {
-	if m.tab == 0 && len(m.files) > 0 {
+	if m.tab == 0 {
+		files := m.filteredFiles()
+		if len(files) == 0 {
+			m.status = "No archive titles match the current filter"
+			return nil
+		}
 		m.status = "Selected archive master — press space, then r to queue"
-		path := m.filteredFiles()[m.cursor]
+		if m.cursor >= len(files) {
+			m.cursor = len(files) - 1
+		}
+		path := files[m.cursor]
 		if _, ok := m.media[path]; !ok {
 			return probeFile(path)
 		}
