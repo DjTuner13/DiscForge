@@ -38,32 +38,34 @@ type jobProgressMsg struct {
 }
 
 type Model struct {
-	root       string
-	files      []string
-	selected   map[int]bool
-	jobs       []jobs.Job
-	activeJob  int
-	tab        int
-	cursor     int
-	width      int
-	height     int
-	help       help.Model
-	keys       keyMap
-	showHelp   bool
-	search     bool
-	searchTerm string
-	status     string
-	logText    string
-	input      textarea.Model
-	store      state.Store
-	media      map[string]probe.Media
-	executor   jobs.Executor
-	logStore   logs.Store
-	running    bool
-	progressCh chan jobProgressMsg
+	root          string
+	files         []string
+	selected      map[string]bool
+	jobs          []jobs.Job
+	activeJob     int
+	tab           int
+	cursor        int
+	width         int
+	height        int
+	help          help.Model
+	keys          keyMap
+	showHelp      bool
+	search        bool
+	searchTerm    string
+	status        string
+	logText       string
+	input         textarea.Model
+	store         state.Store
+	media         map[string]probe.Media
+	executor      jobs.Executor
+	logStore      logs.Store
+	running       bool
+	progressCh    chan jobProgressMsg
+	libraryFilter int
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs / History"}
+var libraryFilters = []string{"All", "Not processed", "Active", "Completed"}
 
 var (
 	accent        = lipgloss.Color("205")
@@ -82,7 +84,7 @@ func NewModel(root string, executor jobs.Executor) Model {
 	t.CharLimit = 128
 	store := state.Default()
 	home, _ := os.UserHomeDir()
-	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}, progressCh: make(chan jobProgressMsg, 32)}
+	m := Model{root: root, selected: map[string]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}, progressCh: make(chan jobProgressMsg, 32)}
 	if snapshot, err := store.Load(); err == nil {
 		m.jobs = snapshot.Jobs
 		if len(m.jobs) > 0 {
@@ -217,7 +219,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.open()
 		}
 		if key.Matches(msg, m.keys.Select) && m.tab == 0 && len(m.files) > 0 {
-			m.selected[m.cursor] = !m.selected[m.cursor]
+			files := m.filteredFiles()
+			if m.cursor < len(files) {
+				m.selected[files[m.cursor]] = !m.selected[files[m.cursor]]
+			}
 		}
 		if key.Matches(msg, m.keys.Restore) && m.tab == 0 {
 			m.queueSelected()
@@ -226,6 +231,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "/" && m.tab == 0 {
 			m.search = true
 			m.input.Focus()
+		}
+		if key.Matches(msg, m.keys.Filter) && m.tab == 0 {
+			m.libraryFilter = (m.libraryFilter + 1) % len(libraryFilters)
+			m.cursor = 0
+			m.status = "Library filter: " + libraryFilters[m.libraryFilter]
 		}
 	}
 	return m, nil
@@ -282,16 +292,44 @@ func (m Model) historyIndices() []int {
 }
 
 func (m Model) filteredFiles() []string {
-	if m.searchTerm == "" {
-		return m.files
-	}
 	var result []string
 	for _, f := range m.files {
-		if strings.Contains(strings.ToLower(f), strings.ToLower(m.searchTerm)) {
+		if !m.matchesLibraryFilter(f) {
+			continue
+		}
+		if m.searchTerm == "" || strings.Contains(strings.ToLower(f), strings.ToLower(m.searchTerm)) {
 			result = append(result, f)
 		}
 	}
 	return result
+}
+
+func (m Model) matchesLibraryFilter(path string) bool {
+	if m.libraryFilter == 0 {
+		return true
+	}
+	active, completed := false, false
+	for _, job := range m.jobs {
+		if job.InputPath != path {
+			continue
+		}
+		switch job.Status {
+		case jobs.Queued, jobs.Preparing, jobs.Running, jobs.Muxing, jobs.Validating:
+			active = true
+		case jobs.Completed:
+			completed = true
+		}
+	}
+	switch m.libraryFilter {
+	case 1:
+		return !active && !completed
+	case 2:
+		return active
+	case 3:
+		return completed
+	default:
+		return true
+	}
 }
 
 func (m *Model) open() tea.Cmd {
@@ -331,8 +369,8 @@ func probeFile(path string) tea.Cmd {
 }
 
 func (m *Model) queueSelected() {
-	for i, path := range m.files {
-		if !m.selected[i] {
+	for _, path := range m.files {
+		if !m.selected[path] {
 			continue
 		}
 		id := fmt.Sprintf("job-%03d", len(m.jobs)+1)
@@ -341,7 +379,7 @@ func (m *Model) queueSelected() {
 			totalFrames = estimateFrames(media)
 		}
 		m.jobs = append(m.jobs, jobs.Job{ID: id, InputPath: path, OutputPath: filepath.Join("/mnt/work", filepath.Base(path)), Profile: "dvd-ntsc-qtgmc-hevc", Status: jobs.Queued, TotalFrames: totalFrames})
-		m.selected[i] = false
+		m.selected[path] = false
 	}
 	if len(m.jobs) > 0 {
 		m.activeJob = 0
@@ -438,7 +476,7 @@ func (m Model) View() string {
 		nav += label + "   "
 	}
 	body := m.viewBody()
-	footer := lipgloss.NewStyle().Foreground(muted).Render(m.status + "\n" + "h/l pane  j/k move  enter open  space select  r restore  / filter  ? help  q quit")
+	footer := lipgloss.NewStyle().Foreground(muted).Render(m.status + "\n" + "h/l pane  j/k move  enter open  space select  r restore  f library filter  / search  ? help  q quit")
 	view := header + "\n" + nav + "\n\n" + body + "\n\n" + footer
 	if m.showHelp {
 		view = boxStyle.Render("Keymap\n\n" + m.help.View(m.keys) + "\n\nPress ? or Esc to close")
@@ -457,10 +495,10 @@ func (m Model) viewBody() string {
 			return boxStyle.Render("Library\n\nNo MKV masters found under " + m.root + ".")
 		}
 		var b strings.Builder
-		b.WriteString("Library  " + lipgloss.NewStyle().Foreground(muted).Render(m.root) + "\n\n")
+		b.WriteString("Library  " + lipgloss.NewStyle().Foreground(muted).Render(m.root) + "  [" + libraryFilters[m.libraryFilter] + "]\n\n")
 		for i, path := range files {
 			marker := "[ ]"
-			if m.selected[i] {
+			if m.selected[path] {
 				marker = selectedStyle.Render("[x]")
 			}
 			line := fmt.Sprintf("%s %-3s %s", marker, fmt.Sprintf("%02d", i+1), path)
