@@ -4,9 +4,9 @@ DiscForge is a Go terminal UI for safely coordinating DVD restoration jobs.
 It orchestrates external tools such as MakeMKV, VapourSynth, FFmpeg, and x265;
 it does not replace them.
 
-The default launch is a safe simulated-runner TUI. The untouched archive is
-always treated as read-only. After the processing server has been validated,
-`--live` enables the real profile-driven VapourSynth/FFmpeg executor.
+The default launch is the real profile-driven VapourSynth/FFmpeg TUI. The
+untouched archive is always treated as read-only. Use `--demo` for a simulated
+runner that makes no media-processing changes.
 
 The implementation includes durable queue state, interrupted-job recovery,
 per-job logs, FFmpeg progress parsing, YAML profile validation, and guarded
@@ -33,10 +33,8 @@ Equivalent flags are available:
 ```sh
 go run ./cmd/discforge --archive-root /mnt/archive --state-file /tmp/discforge-state.json
 
-# Explicit live mode; this starts real media processing only after you queue a job.
-go run ./cmd/discforge --live --archive-root /mnt/archive \
-  --profile profiles/dvd-ntsc-qtgmc.yaml \
-  --script /path/to/qtgmc.vpy
+# Demo mode; no media-processing commands are connected.
+go run ./cmd/discforge --demo --archive-root /mnt/archive
 ```
 
 For a noninteractive, read-only archive check:
@@ -56,9 +54,9 @@ script from the processing server:
 ```
 
 Use `j`/`k` to move, `h`/`l` to switch views, `Enter` to open, `Space` to
-select, `r` to queue a restoration, `?` for help, and `q` to quit. Without
-`--live`, queued jobs are simulated. With `--live`, `r` starts the real
-executor and writes process output to the per-job log directory.
+select, `r` to queue a restoration, `?` for help, and `q` to quit. By default,
+`r` starts the real executor and writes process output to the per-job log
+directory. Use `--demo` to simulate jobs.
 
 On the processing server, set the external tool paths before launching live
 mode:
@@ -66,6 +64,13 @@ mode:
 ```sh
 export DISCFORGE_VSPIPE=/home/dj/src/viva-remaster/.venv/bin/vspipe
 export DISCFORGE_FFMPEG=/usr/bin/ffmpeg
+```
+
+The repository also includes `scripts/launch-live.sh`, which sets these
+defaults automatically:
+
+```sh
+./scripts/launch-live.sh
 ```
 
 ## Project plan

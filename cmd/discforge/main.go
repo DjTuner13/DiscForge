@@ -18,9 +18,10 @@ func main() {
 	rootFlag := flag.String("archive-root", "", "read-only archive root")
 	stateFlag := flag.String("state-file", "", "queue state file override")
 	scanFlag := flag.Bool("scan", false, "list MKV archive masters and exit")
-	liveFlag := flag.Bool("live", false, "enable real VapourSynth/FFmpeg execution")
+	liveFlag := flag.Bool("live", false, "enable real VapourSynth/FFmpeg execution (the default)")
+	demoFlag := flag.Bool("demo", false, "use simulated jobs without media-processing commands")
 	profileFlag := flag.String("profile", "profiles/dvd-ntsc-qtgmc.yaml", "restoration profile for live mode")
-	scriptFlag := flag.String("script", "", "VapourSynth script for live mode")
+	scriptFlag := flag.String("script", "scripts/qtgmc-source.vpy", "VapourSynth script for live mode")
 	flag.Parse()
 	root := *rootFlag
 	if root == "" {
@@ -44,8 +45,11 @@ func main() {
 		return
 	}
 
+	if *liveFlag && *demoFlag {
+		log.Fatal("--live and --demo cannot be used together")
+	}
 	var executor jobs.Executor
-	if *liveFlag {
+	if !*demoFlag {
 		profile, err := profiles.Load(*profileFlag)
 		if err != nil {
 			log.Fatal(err)
