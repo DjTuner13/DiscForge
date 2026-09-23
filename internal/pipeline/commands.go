@@ -32,5 +32,5 @@ func BuildRestorationCommands(source, script, partialVideo, output string, profi
 
 func PartialOutput(output string) string { return output + ".partial" }
 func TemporaryVideo(output string) string {
-	return filepath.Join(filepath.Dir(output), "."+filepath.Base(output)+".video.partial")
+	return filepath.Join(filepath.Dir(output), "."+filepath.Base(output)+".video.partial.mkv")
 }

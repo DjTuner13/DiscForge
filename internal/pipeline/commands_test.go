@@ -23,7 +23,7 @@ func TestBuildRestorationCommandsUsesProfileAndPartialOutputs(t *testing.T) {
 			t.Fatalf("encode command %q missing %q", joined, want)
 		}
 	}
-	if PartialOutput("final.mkv") != "final.mkv.partial" || TemporaryVideo("/work/final.mkv") != "/work/.final.mkv.video.partial" {
+	if PartialOutput("final.mkv") != "final.mkv.partial" || TemporaryVideo("/work/final.mkv") != "/work/.final.mkv.video.partial.mkv" {
 		t.Fatal("partial output naming changed")
 	}
 }
