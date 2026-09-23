@@ -14,6 +14,9 @@ func TestBuildRestorationCommandsUsesProfileAndPartialOutputs(t *testing.T) {
 	profile.Encoder.Preset = "medium"
 	profile.Encoder.CRF = 16
 	commands := BuildRestorationCommands("source.mkv", "qtgmc.vpy", ".video.partial", "final.mkv", profile)
+	if len(commands.VapourSynth.Env) != 1 || commands.VapourSynth.Env[0] != "DISCFORGE_SOURCE=source.mkv" {
+		t.Fatalf("VapourSynth environment = %#v", commands.VapourSynth.Env)
+	}
 	joined := strings.Join(commands.Encode.Args, " ")
 	for _, want := range []string{"libx265", "medium", "16", "yuv420p10le", "-progress pipe:2", "-n"} {
 		if !strings.Contains(joined, want) {

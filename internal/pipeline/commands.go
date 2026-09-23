@@ -17,7 +17,7 @@ func BuildRestorationCommands(source, script, partialVideo, output string, profi
 	vspipe := "vspipe"
 	ffmpeg := "ffmpeg"
 	return RestorationCommands{
-		VapourSynth: Command{Name: vspipe, Args: []string{"-c", "y4m", script, "-"}},
+		VapourSynth: Command{Name: vspipe, Args: []string{"-c", "y4m", script, "-"}, Env: []string{"DISCFORGE_SOURCE=" + source}},
 		Encode:      Command{Name: ffmpeg, Args: []string{"-f", "yuv4mpegpipe", "-i", "-", "-an", "-c:v", profile.Encoder.Codec, "-preset", profile.Encoder.Preset, "-crf", fmt.Sprint(profile.Encoder.CRF), "-pix_fmt", profile.Video.PixelFormat, "-progress", "pipe:2", "-nostats", "-n", partialVideo}},
 		Mux:         MuxCommand(partialVideo, source, output),
 	}

@@ -51,7 +51,7 @@ script from the processing server:
 ```sh
 ./scripts/run-restoration.sh \
   "/mnt/archive/Viva La Bam/Season 01/Disc 01/A1_t05.mkv" \
-  scripts/qtgmc-test.vpy \
+  scripts/qtgmc-source.vpy \
   /mnt/work/A1_t05.restored.mkv
 ```
 

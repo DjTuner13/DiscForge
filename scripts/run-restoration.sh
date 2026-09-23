@@ -57,6 +57,7 @@ trap cleanup EXIT INT TERM
 
 : > "$log_file"
 echo "Encoding video; log: $log_file"
+export DISCFORGE_SOURCE="$source_mkv"
 "$vspipe_bin" -c y4m "$vapoursynth_script" - 2>>"$log_file" |
   "$ffmpeg_bin" -f yuv4mpegpipe -i - -an \
     -c:v libx265 -preset medium -crf 16 -pix_fmt yuv420p10le \

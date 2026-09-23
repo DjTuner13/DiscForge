@@ -13,6 +13,7 @@ import (
 type Command struct {
 	Name string
 	Args []string
+	Env  []string
 }
 
 // GuardedRunner centralizes process execution and refuses unsafe output paths.
@@ -49,6 +50,7 @@ func (r GuardedRunner) Run(ctx context.Context, command Command, logWriter io.Wr
 		return fmt.Errorf("command name is required")
 	}
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...)
+	cmd.Env = append(os.Environ(), command.Env...)
 	cmd.Stdout, cmd.Stderr = logWriter, logWriter
 	return cmd.Run()
 }

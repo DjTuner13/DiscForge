@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 )
 
@@ -17,6 +18,8 @@ func RunPipe(ctx context.Context, producer, consumer Command, logWriter io.Write
 	pipeReader, pipeWriter := io.Pipe()
 	producerCmd := exec.CommandContext(ctx, producer.Name, producer.Args...)
 	consumerCmd := exec.CommandContext(ctx, consumer.Name, consumer.Args...)
+	producerCmd.Env = append(os.Environ(), producer.Env...)
+	consumerCmd.Env = append(os.Environ(), consumer.Env...)
 	producerCmd.Stdout = pipeWriter
 	producerCmd.Stderr = logWriter
 	consumerCmd.Stdin = pipeReader
