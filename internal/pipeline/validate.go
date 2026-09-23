@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/djranoia/discforge/internal/probe"
+	"github.com/discforge/discforge/internal/probe"
 )
 
 type Validation struct {

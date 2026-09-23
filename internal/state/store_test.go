@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/djranoia/discforge/internal/jobs"
+	"github.com/discforge/discforge/internal/jobs"
 )
 
 func TestStoreRecoversActiveJobsAsInterrupted(t *testing.T) {

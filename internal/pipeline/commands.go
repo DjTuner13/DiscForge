@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/djranoia/discforge/internal/profiles"
+	"github.com/discforge/discforge/internal/profiles"
 )
 
 type RestorationCommands struct {

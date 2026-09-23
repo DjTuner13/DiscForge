@@ -12,10 +12,10 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/djranoia/discforge/internal/archive"
-	"github.com/djranoia/discforge/internal/jobs"
-	"github.com/djranoia/discforge/internal/probe"
-	"github.com/djranoia/discforge/internal/state"
+	"github.com/discforge/discforge/internal/archive"
+	"github.com/discforge/discforge/internal/jobs"
+	"github.com/discforge/discforge/internal/probe"
+	"github.com/discforge/discforge/internal/state"
 )
 
 type tickMsg time.Time

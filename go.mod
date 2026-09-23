@@ -1,4 +1,4 @@
-module github.com/djranoia/discforge
+module github.com/discforge/discforge
 
 go 1.24.0
 

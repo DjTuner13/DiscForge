@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/djranoia/discforge/internal/jobs"
-	"github.com/djranoia/discforge/internal/probe"
-	"github.com/djranoia/discforge/internal/profiles"
+	"github.com/discforge/discforge/internal/jobs"
+	"github.com/discforge/discforge/internal/probe"
+	"github.com/discforge/discforge/internal/profiles"
 )
 
 type fakeInspector struct{ media map[string]probe.Media }
