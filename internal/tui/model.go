@@ -63,7 +63,7 @@ type Model struct {
 	progressCh chan jobProgressMsg
 }
 
-var tabs = []string{"Library", "Queue", "Job", "Logs"}
+var tabs = []string{"Library", "Queue", "Job", "Logs / History"}
 
 var (
 	accent        = lipgloss.Color("205")
@@ -250,13 +250,35 @@ func (m Model) itemCount() int {
 	case 0:
 		return len(m.filteredFiles())
 	case 1:
-		return len(m.jobs)
+		return len(m.queueIndices())
 	case 2:
 		return 1
 	case 3:
-		return 1
+		return len(m.historyIndices())
 	}
 	return 0
+}
+
+func (m Model) queueIndices() []int {
+	var indices []int
+	for i, job := range m.jobs {
+		switch job.Status {
+		case jobs.Queued, jobs.Preparing, jobs.Running, jobs.Muxing, jobs.Validating:
+			indices = append(indices, i)
+		}
+	}
+	return indices
+}
+
+func (m Model) historyIndices() []int {
+	var indices []int
+	for i, job := range m.jobs {
+		switch job.Status {
+		case jobs.Completed, jobs.Failed, jobs.Cancelled, jobs.Interrupted:
+			indices = append(indices, i)
+		}
+	}
+	return indices
 }
 
 func (m Model) filteredFiles() []string {
@@ -282,7 +304,21 @@ func (m *Model) open() tea.Cmd {
 	}
 	if m.tab == 1 && len(m.jobs) > 0 {
 		m.tab = 2
-		m.activeJob = m.cursor
+		indices := m.queueIndices()
+		if m.cursor < len(indices) {
+			m.activeJob = indices[m.cursor]
+		}
+	}
+	if m.tab == 3 {
+		indices := m.historyIndices()
+		if m.cursor < len(indices) {
+			m.activeJob = indices[m.cursor]
+			if data, err := m.logStore.Read(m.jobs[m.activeJob].ID); err == nil {
+				m.logText = string(data)
+			} else {
+				m.logText = "No process log was recorded for this job."
+			}
+		}
 	}
 	return nil
 }
@@ -439,12 +475,14 @@ func (m Model) viewBody() string {
 		}
 		return boxStyle.Render(b.String())
 	case 1:
-		if len(m.jobs) == 0 {
+		indices := m.queueIndices()
+		if len(indices) == 0 {
 			return boxStyle.Render("Restoration Queue\n\nQueue is empty. Select an archive master in Library and press r.")
 		}
 		var b strings.Builder
 		b.WriteString("Restoration Queue\n\n")
-		for i, j := range m.jobs {
+		for i, index := range indices {
+			j := m.jobs[index]
 			line := fmt.Sprintf("%s %-12s %6.1f%%  %s", statusIcon(j.Status), j.ID, j.Percent(), filepath.Base(j.InputPath))
 			if i == m.cursor {
 				line = lipgloss.NewStyle().Background(lipgloss.Color("236")).Render(line)
@@ -459,10 +497,24 @@ func (m Model) viewBody() string {
 		j := m.jobs[m.activeJob]
 		return boxStyle.Render(fmt.Sprintf("Current Job\n\n%s\n\nProfile     %s\nStatus      %s\nProgress    %s %5.1f%%\nFrame       %d / %d\nFPS         %.1f\nOutput      %s", filepath.Base(j.InputPath), j.Profile, j.Status, progress(j.Percent(), 28), j.Percent(), j.Frame, j.TotalFrames, j.FPS, j.OutputPath))
 	default:
-		if m.logText == "" {
-			return boxStyle.Render("Logs\n\nNo process logs yet. The fake runner keeps production side effects disabled.")
+		indices := m.historyIndices()
+		if len(indices) == 0 {
+			return boxStyle.Render("Logs / History\n\nNo completed or interrupted jobs yet.")
 		}
-		return boxStyle.Render("Logs\n\n" + m.logText)
+		var b strings.Builder
+		b.WriteString("Logs / History\n\n")
+		for i, index := range indices {
+			j := m.jobs[index]
+			line := fmt.Sprintf("%s %-12s %-11s %s", statusIcon(j.Status), j.ID, j.Status, filepath.Base(j.InputPath))
+			if i == m.cursor {
+				line = lipgloss.NewStyle().Background(lipgloss.Color("236")).Render(line)
+			}
+			b.WriteString(line + "\n")
+		}
+		if m.logText != "" {
+			b.WriteString("\nSelected log\n\n" + m.logText)
+		}
+		return boxStyle.Render(b.String())
 	}
 }
 
