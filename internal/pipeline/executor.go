@@ -47,7 +47,7 @@ func (e RestorationExecutor) ExecuteWithProgress(ctx context.Context, job jobs.J
 	return e.execute(ctx, job)
 }
 
-func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) error {
+func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) (err error) {
 	guard := GuardedRunner{ArchiveRoot: e.ArchiveRoot}
 	if err := guard.ValidateOutput(job.InputPath, job.OutputPath); err != nil {
 		return err
@@ -70,6 +70,11 @@ func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			CleanupArtifacts(job)
+		}
+	}()
 	pipe := e.RunPipe
 	if pipe == nil {
 		pipe = RunPipe
@@ -103,4 +108,11 @@ func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) error {
 		return fmt.Errorf("finalize output: %w", err)
 	}
 	return nil
+}
+
+// CleanupArtifacts removes only regenerable outputs for a job. The archive
+// source, final output, and durable process log are never touched.
+func CleanupArtifacts(job jobs.Job) {
+	_ = os.Remove(TemporaryVideo(job.OutputPath))
+	_ = os.Remove(PartialOutput(job.OutputPath))
 }

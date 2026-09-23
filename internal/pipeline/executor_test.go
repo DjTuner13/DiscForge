@@ -49,3 +49,27 @@ func TestRestorationExecutorFinalizesOnlyAfterValidation(t *testing.T) {
 		t.Fatalf("partial output remains: %v", err)
 	}
 }
+
+func TestCleanupArtifactsLeavesFinalOutputAlone(t *testing.T) {
+	dir := t.TempDir()
+	job := jobs.Job{OutputPath: filepath.Join(dir, "output.mkv")}
+	if err := os.WriteFile(TemporaryVideo(job.OutputPath), []byte("video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(PartialOutput(job.OutputPath), []byte("partial"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(job.OutputPath, []byte("final"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	CleanupArtifacts(job)
+	if _, err := os.Stat(TemporaryVideo(job.OutputPath)); !os.IsNotExist(err) {
+		t.Fatalf("temporary output remains: %v", err)
+	}
+	if _, err := os.Stat(PartialOutput(job.OutputPath)); !os.IsNotExist(err) {
+		t.Fatalf("partial output remains: %v", err)
+	}
+	if _, err := os.Stat(job.OutputPath); err != nil {
+		t.Fatalf("final output was removed: %v", err)
+	}
+}

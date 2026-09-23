@@ -13,6 +13,7 @@ import (
 	"github.com/DjTuner13/DiscForge/internal/archive"
 	"github.com/DjTuner13/DiscForge/internal/jobs"
 	"github.com/DjTuner13/DiscForge/internal/logs"
+	"github.com/DjTuner13/DiscForge/internal/pipeline"
 	"github.com/DjTuner13/DiscForge/internal/probe"
 	"github.com/DjTuner13/DiscForge/internal/state"
 	"github.com/charmbracelet/bubbles/help"
@@ -87,6 +88,11 @@ func NewModel(root string, executor jobs.Executor) Model {
 	m := Model{root: root, selected: map[string]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}, progressCh: make(chan jobProgressMsg, 32)}
 	if snapshot, err := store.Load(); err == nil {
 		m.jobs = snapshot.Jobs
+		for _, job := range m.jobs {
+			if job.Status == jobs.Interrupted {
+				pipeline.CleanupArtifacts(job)
+			}
+		}
 		if len(m.jobs) > 0 {
 			m.activeJob = 0
 		}
