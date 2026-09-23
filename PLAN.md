@@ -1499,6 +1499,27 @@ Allow mapping finished DVD titles to episodes.
 
 ---
 
+## Future Feature — Segmented Pause and Resume
+
+Long restorations should eventually support safe pause, cancellation, and
+resume through checkpointed frame segments rather than restarting a title from
+frame zero.
+
+Design considerations:
+
+- split the video into fixed frame ranges and record completion in a manifest;
+- use overlapping boundary frames because QTGMC depends on temporal context;
+- trim overlap frames before joining completed segments;
+- keep segment outputs and manifests outside the read-only archive;
+- skip verified segments after restart and encode only missing segments;
+- mux audio, subtitles, chapters, and metadata after all video segments finish;
+- clean incomplete segments automatically while preserving the job log.
+
+This requires careful validation of segment joins and should be discussed and
+benchmarked before implementation.
+
+---
+
 # Initial Agent Tasks
 
 Start with these tasks in order:
