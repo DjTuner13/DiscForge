@@ -34,6 +34,12 @@ Equivalent flags are available:
 go run ./cmd/discforge --archive-root /mnt/archive --state-file /tmp/discforge-state.json
 ```
 
+For a noninteractive, read-only archive check:
+
+```sh
+discforge --archive-root /mnt/archive --scan
+```
+
 Use `j`/`k` to move, `h`/`l` to switch views, `Enter` to open, `Space` to
 select, `r` to queue a fake restoration, `?` for help, and `q` to quit.
 
