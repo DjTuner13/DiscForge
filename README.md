@@ -45,6 +45,16 @@ For a noninteractive, read-only archive check:
 discforge --archive-root /mnt/archive --scan
 ```
 
+For a full restoration outside the archive, use the safety-checked helper
+script from the processing server:
+
+```sh
+./scripts/run-restoration.sh \
+  "/mnt/archive/Viva La Bam/Season 01/Disc 01/A1_t05.mkv" \
+  scripts/qtgmc-test.vpy \
+  /mnt/work/A1_t05.restored.mkv
+```
+
 Use `j`/`k` to move, `h`/`l` to switch views, `Enter` to open, `Space` to
 select, `r` to queue a restoration, `?` for help, and `q` to quit. Without
 `--live`, queued jobs are simulated. With `--live`, `r` starts the real
