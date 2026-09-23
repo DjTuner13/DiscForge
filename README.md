@@ -4,14 +4,14 @@ DiscForge is a Go terminal UI for safely coordinating DVD restoration jobs.
 It orchestrates external tools such as MakeMKV, VapourSynth, FFmpeg, and x265;
 it does not replace them.
 
-The first milestone is a safe, fake-runner TUI that establishes the navigation,
-queue, and job-state architecture before any media-processing commands are
-connected. The untouched archive is always treated as read-only.
+The default launch is a safe simulated-runner TUI. The untouched archive is
+always treated as read-only. After the processing server has been validated,
+`--live` enables the real profile-driven VapourSynth/FFmpeg executor.
 
-The current implementation also includes durable queue state, interrupted-job
-recovery, FFmpeg progress parsing, YAML profile validation, and guarded process
-execution. Real VapourSynth/FFmpeg execution remains intentionally gated until
-the pipeline is tested against the processing server.
+The implementation includes durable queue state, interrupted-job recovery,
+per-job logs, FFmpeg progress parsing, YAML profile validation, and guarded
+process execution. Live mode runs one job at a time and records failures in
+the durable queue state.
 
 ## Run
 
@@ -32,6 +32,11 @@ Equivalent flags are available:
 
 ```sh
 go run ./cmd/discforge --archive-root /mnt/archive --state-file /tmp/discforge-state.json
+
+# Explicit live mode; this starts real media processing only after you queue a job.
+go run ./cmd/discforge --live --archive-root /mnt/archive \
+  --profile profiles/dvd-ntsc-qtgmc.yaml \
+  --script /path/to/qtgmc.vpy
 ```
 
 For a noninteractive, read-only archive check:
@@ -41,7 +46,9 @@ discforge --archive-root /mnt/archive --scan
 ```
 
 Use `j`/`k` to move, `h`/`l` to switch views, `Enter` to open, `Space` to
-select, `r` to queue a fake restoration, `?` for help, and `q` to quit.
+select, `r` to queue a restoration, `?` for help, and `q` to quit. Without
+`--live`, queued jobs are simulated. With `--live`, `r` starts the real
+executor and writes process output to the per-job log directory.
 
 ## Project plan
 

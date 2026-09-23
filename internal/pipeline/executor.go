@@ -28,6 +28,17 @@ type RestorationExecutor struct {
 }
 
 func (e RestorationExecutor) Execute(ctx context.Context, job jobs.Job) error {
+	return e.execute(ctx, job)
+}
+
+// ExecuteWithLog runs one restoration while directing process output to log.
+// It lets the TUI keep per-job logs without sharing mutable executor state.
+func (e RestorationExecutor) ExecuteWithLog(ctx context.Context, job jobs.Job, log io.Writer) error {
+	e.Log = log
+	return e.execute(ctx, job)
+}
+
+func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) error {
 	guard := GuardedRunner{ArchiveRoot: e.ArchiveRoot}
 	if err := guard.ValidateOutput(job.InputPath, job.OutputPath); err != nil {
 		return err

@@ -3,12 +3,15 @@ package tui
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/DjTuner13/DiscForge/internal/archive"
 	"github.com/DjTuner13/DiscForge/internal/jobs"
+	"github.com/DjTuner13/DiscForge/internal/logs"
 	"github.com/DjTuner13/DiscForge/internal/probe"
 	"github.com/DjTuner13/DiscForge/internal/state"
 	"github.com/charmbracelet/bubbles/help"
@@ -22,6 +25,10 @@ type tickMsg time.Time
 type probeMsg struct {
 	path  string
 	media probe.Media
+	err   error
+}
+type jobDoneMsg struct {
+	index int
 	err   error
 }
 
@@ -45,6 +52,9 @@ type Model struct {
 	input      textarea.Model
 	store      state.Store
 	media      map[string]probe.Media
+	executor   jobs.Executor
+	logStore   logs.Store
+	running    bool
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs"}
@@ -59,13 +69,14 @@ var (
 	boxStyle      = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).Padding(1, 2)
 )
 
-func NewModel(root string) Model {
+func NewModel(root string, executor jobs.Executor) Model {
 	h := help.New()
 	t := textarea.New()
 	t.Prompt = "/ "
 	t.CharLimit = 128
 	store := state.Default()
-	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}}
+	home, _ := os.UserHomeDir()
+	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}}
 	if snapshot, err := store.Load(); err == nil {
 		m.jobs = snapshot.Jobs
 		if len(m.jobs) > 0 {
@@ -95,7 +106,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = msg.Width
 	case tickMsg:
-		if m.activeJob >= 0 && m.activeJob < len(m.jobs) {
+		if m.executor == nil && m.activeJob >= 0 && m.activeJob < len(m.jobs) {
 			m.jobs[m.activeJob] = m.jobs[m.activeJob].Advance(time.Time(msg))
 			if m.jobs[m.activeJob].Status == jobs.Completed {
 				m.status = "Restoration complete — ready for Sonarr"
@@ -105,6 +116,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, tick()
+	case jobDoneMsg:
+		m.running = false
+		if msg.index >= 0 && msg.index < len(m.jobs) {
+			if msg.err != nil {
+				m.jobs[msg.index].Status = jobs.Failed
+				m.jobs[msg.index].Error = msg.err.Error()
+				m.status = fmt.Sprintf("%s failed: %v", m.jobs[msg.index].ID, msg.err)
+			} else {
+				m.jobs[msg.index].Status = jobs.Completed
+				m.jobs[msg.index].FinishedAt = time.Now()
+				m.status = fmt.Sprintf("%s completed", m.jobs[msg.index].ID)
+			}
+			_ = m.store.Save(state.Snapshot{Jobs: m.jobs})
+		}
+		return m, m.runNext()
 	case probeMsg:
 		if msg.err != nil {
 			m.status = fmt.Sprintf("ffprobe failed: %v", msg.err)
@@ -172,6 +198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, m.keys.Restore) && m.tab == 0 {
 			m.queueSelected()
+			return m, m.runNext()
 		}
 		if msg.String() == "/" && m.tab == 0 {
 			m.search = true
@@ -250,17 +277,52 @@ func (m *Model) queueSelected() {
 			continue
 		}
 		id := fmt.Sprintf("job-%03d", len(m.jobs)+1)
-		m.jobs = append(m.jobs, jobs.Job{ID: id, InputPath: path, OutputPath: filepath.Join("/mnt/work", filepath.Base(path)), Profile: "dvd-ntsc-qtgmc-hevc", Status: jobs.Queued, TotalFrames: 7192})
+		m.jobs = append(m.jobs, jobs.Job{ID: id, InputPath: path, OutputPath: filepath.Join("/mnt/work", filepath.Base(path)), Profile: "dvd-ntsc-qtgmc-hevc", Status: jobs.Queued})
 		m.selected[i] = false
 	}
 	if len(m.jobs) > 0 {
 		m.activeJob = 0
 		m.tab = 1
-		m.status = "Queued fake restoration — no media commands are connected"
+		if m.executor == nil {
+			m.status = "Queued simulated restoration — use --live to run media commands"
+		} else {
+			m.status = "Queued live restoration"
+		}
 		if err := m.store.Save(state.Snapshot{Jobs: m.jobs}); err != nil {
 			m.status = fmt.Sprintf("state save failed: %v", err)
 		}
 	}
+}
+
+func (m *Model) runNext() tea.Cmd {
+	if m.executor == nil || m.running {
+		return nil
+	}
+	for i := range m.jobs {
+		if m.jobs[i].Status != jobs.Queued {
+			continue
+		}
+		m.running = true
+		m.jobs[i].Status = jobs.Running
+		m.jobs[i].StartedAt = time.Now()
+		_ = m.store.Save(state.Snapshot{Jobs: m.jobs})
+		index := i
+		job := m.jobs[i]
+		return func() tea.Msg {
+			logFile, err := m.logStore.Open(job.ID)
+			if err != nil {
+				return jobDoneMsg{index: index, err: err}
+			}
+			defer logFile.Close()
+			if writer, ok := m.executor.(interface {
+				ExecuteWithLog(context.Context, jobs.Job, io.Writer) error
+			}); ok {
+				return jobDoneMsg{index: index, err: writer.ExecuteWithLog(context.Background(), job, logFile)}
+			}
+			return jobDoneMsg{index: index, err: m.executor.Execute(context.Background(), job)}
+		}
+	}
+	return nil
 }
 
 func (m Model) View() string {
