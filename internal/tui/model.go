@@ -63,6 +63,7 @@ type Model struct {
 	running       bool
 	progressCh    chan jobProgressMsg
 	libraryFilter int
+	confirmDelete bool
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs / History"}
@@ -194,6 +195,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.Back) && m.tab == 2 {
 			m.tab = 1
 			m.cursor = m.activeJob
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.Delete) && m.tab == 1 {
+			indices := m.queueIndices()
+			if m.cursor >= len(indices) {
+				return m, nil
+			}
+			index := indices[m.cursor]
+			if m.jobs[index].Status != jobs.Queued {
+				m.confirmDelete = false
+				m.status = "Only queued jobs can be removed"
+				return m, nil
+			}
+			if !m.confirmDelete {
+				m.confirmDelete = true
+				m.status = fmt.Sprintf("Press d again to remove %s", m.jobs[index].ID)
+				return m, nil
+			}
+			m.jobs = append(m.jobs[:index], m.jobs[index+1:]...)
+			m.confirmDelete = false
+			if m.cursor >= len(m.queueIndices()) && m.cursor > 0 {
+				m.cursor--
+			}
+			m.status = "Queued job removed"
+			if err := m.store.Save(state.Snapshot{Jobs: m.jobs}); err != nil {
+				m.status = fmt.Sprintf("state save failed: %v", err)
+			}
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.Left) {
@@ -482,7 +510,7 @@ func (m Model) View() string {
 		nav += label + "   "
 	}
 	body := m.viewBody()
-	footer := lipgloss.NewStyle().Foreground(muted).Render(m.status + "\n" + "h/l pane  j/k move  enter open  space select  r restore  f library filter  / search  ? help  q quit")
+	footer := lipgloss.NewStyle().Foreground(muted).Render(m.status + "\n" + "h/l pane  j/k move  enter open  space select  r restore  d remove queued  f library filter  / search  ? help  q quit")
 	view := header + "\n" + nav + "\n\n" + body + "\n\n" + footer
 	if m.showHelp {
 		view = boxStyle.Render("Keymap\n\n" + m.help.View(m.keys) + "\n\nPress ? or Esc to close")

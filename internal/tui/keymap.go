@@ -3,12 +3,12 @@ package tui
 import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
-	Up, Down, Left, Right         key.Binding
-	Top, Bottom                   key.Binding
-	HalfDown, HalfUp              key.Binding
-	PageDown, PageUp              key.Binding
-	Help, Quit, Back              key.Binding
-	Open, Select, Restore, Filter key.Binding
+	Up, Down, Left, Right                 key.Binding
+	Top, Bottom                           key.Binding
+	HalfDown, HalfUp                      key.Binding
+	PageDown, PageUp                      key.Binding
+	Help, Quit, Back                      key.Binding
+	Open, Select, Restore, Filter, Delete key.Binding
 }
 
 func defaultKeyMap() keyMap {
@@ -30,6 +30,7 @@ func defaultKeyMap() keyMap {
 		Select:   key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "select")),
 		Restore:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restore")),
 		Filter:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "filter library")),
+		Delete:   key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove queued")),
 	}
 }
 
@@ -41,6 +42,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.Top, k.Bottom, k.HalfDown, k.HalfUp, k.PageDown, k.PageUp},
-		{k.Open, k.Select, k.Restore, k.Filter, k.Help, k.Back, k.Quit},
+		{k.Open, k.Select, k.Restore, k.Filter, k.Delete, k.Help, k.Back, k.Quit},
 	}
 }
