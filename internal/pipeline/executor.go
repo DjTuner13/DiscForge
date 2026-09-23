@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/discforge/discforge/internal/jobs"
-	"github.com/discforge/discforge/internal/probe"
-	"github.com/discforge/discforge/internal/profiles"
+	"github.com/DjTuner13/DiscForge/internal/jobs"
+	"github.com/DjTuner13/DiscForge/internal/probe"
+	"github.com/DjTuner13/DiscForge/internal/profiles"
 )
 
 type Inspector interface {

@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/DjTuner13/DiscForge/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/discforge/discforge/internal/tui"
 )
 
 func main() {

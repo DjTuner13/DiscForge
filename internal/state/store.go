@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/discforge/discforge/internal/jobs"
+	"github.com/DjTuner13/DiscForge/internal/jobs"
 )
 
 type Snapshot struct {

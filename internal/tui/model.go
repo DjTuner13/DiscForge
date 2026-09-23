@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DjTuner13/DiscForge/internal/archive"
+	"github.com/DjTuner13/DiscForge/internal/jobs"
+	"github.com/DjTuner13/DiscForge/internal/probe"
+	"github.com/DjTuner13/DiscForge/internal/state"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/discforge/discforge/internal/archive"
-	"github.com/discforge/discforge/internal/jobs"
-	"github.com/discforge/discforge/internal/probe"
-	"github.com/discforge/discforge/internal/state"
 )
 
 type tickMsg time.Time

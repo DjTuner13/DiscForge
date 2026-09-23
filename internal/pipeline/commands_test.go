@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/discforge/discforge/internal/profiles"
+	"github.com/DjTuner13/DiscForge/internal/profiles"
 )
 
 func TestBuildRestorationCommandsUsesProfileAndPartialOutputs(t *testing.T) {

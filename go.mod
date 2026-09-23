@@ -1,4 +1,4 @@
-module github.com/discforge/discforge
+module github.com/DjTuner13/DiscForge
 
 go 1.24.0
 
