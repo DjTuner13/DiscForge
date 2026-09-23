@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,10 @@ type jobDoneMsg struct {
 	index int
 	err   error
 }
+type jobProgressMsg struct {
+	index    int
+	progress jobs.Progress
+}
 
 type Model struct {
 	root       string
@@ -55,6 +60,7 @@ type Model struct {
 	executor   jobs.Executor
 	logStore   logs.Store
 	running    bool
+	progressCh chan jobProgressMsg
 }
 
 var tabs = []string{"Library", "Queue", "Job", "Logs"}
@@ -76,7 +82,7 @@ func NewModel(root string, executor jobs.Executor) Model {
 	t.CharLimit = 128
 	store := state.Default()
 	home, _ := os.UserHomeDir()
-	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}}
+	m := Model{root: root, selected: map[int]bool{}, activeJob: -1, help: h, keys: defaultKeyMap(), input: t, store: store, media: map[string]probe.Media{}, executor: executor, logStore: logs.Store{Root: filepath.Join(home, ".local", "state", "discforge", "logs")}, progressCh: make(chan jobProgressMsg, 32)}
 	if snapshot, err := store.Load(); err == nil {
 		m.jobs = snapshot.Jobs
 		if len(m.jobs) > 0 {
@@ -106,6 +112,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = msg.Width
 	case tickMsg:
+		for {
+			select {
+			case update := <-m.progressCh:
+				if update.index >= 0 && update.index < len(m.jobs) {
+					m.jobs[update.index].Frame = update.progress.Frame
+					m.jobs[update.index].FPS = update.progress.FPS
+				}
+			default:
+				goto progressDrained
+			}
+		}
+	progressDrained:
 		if m.executor == nil && m.activeJob >= 0 && m.activeJob < len(m.jobs) {
 			m.jobs[m.activeJob] = m.jobs[m.activeJob].Advance(time.Time(msg))
 			if m.jobs[m.activeJob].Status == jobs.Completed {
@@ -277,7 +295,11 @@ func (m *Model) queueSelected() {
 			continue
 		}
 		id := fmt.Sprintf("job-%03d", len(m.jobs)+1)
-		m.jobs = append(m.jobs, jobs.Job{ID: id, InputPath: path, OutputPath: filepath.Join("/mnt/work", filepath.Base(path)), Profile: "dvd-ntsc-qtgmc-hevc", Status: jobs.Queued})
+		totalFrames := int64(0)
+		if media, ok := m.media[path]; ok {
+			totalFrames = estimateFrames(media)
+		}
+		m.jobs = append(m.jobs, jobs.Job{ID: id, InputPath: path, OutputPath: filepath.Join("/mnt/work", filepath.Base(path)), Profile: "dvd-ntsc-qtgmc-hevc", Status: jobs.Queued, TotalFrames: totalFrames})
 		m.selected[i] = false
 	}
 	if len(m.jobs) > 0 {
@@ -315,6 +337,17 @@ func (m *Model) runNext() tea.Cmd {
 			}
 			defer logFile.Close()
 			if writer, ok := m.executor.(interface {
+				ExecuteWithProgress(context.Context, jobs.Job, io.Writer, func(jobs.Progress)) error
+			}); ok {
+				callback := func(progress jobs.Progress) {
+					select {
+					case m.progressCh <- jobProgressMsg{index: index, progress: progress}:
+					default:
+					}
+				}
+				return jobDoneMsg{index: index, err: writer.ExecuteWithProgress(context.Background(), job, logFile, callback)}
+			}
+			if writer, ok := m.executor.(interface {
 				ExecuteWithLog(context.Context, jobs.Job, io.Writer) error
 			}); ok {
 				return jobDoneMsg{index: index, err: writer.ExecuteWithLog(context.Background(), job, logFile)}
@@ -323,6 +356,25 @@ func (m *Model) runNext() tea.Cmd {
 		}
 	}
 	return nil
+}
+
+func estimateFrames(media probe.Media) int64 {
+	for _, stream := range media.Streams {
+		if stream.CodecType != "video" {
+			continue
+		}
+		parts := strings.SplitN(stream.RFrameRate, "/", 2)
+		if len(parts) != 2 {
+			return 0
+		}
+		numerator, errN := strconv.ParseFloat(parts[0], 64)
+		denominator, errD := strconv.ParseFloat(parts[1], 64)
+		if errN != nil || errD != nil || denominator == 0 {
+			return 0
+		}
+		return int64(media.DurationSeconds() * numerator / denominator * 2)
+	}
+	return 0
 }
 
 func (m Model) View() string {

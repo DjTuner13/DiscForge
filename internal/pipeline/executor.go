@@ -25,6 +25,7 @@ type RestorationExecutor struct {
 	RunPipe     PipeFunc
 	RunCommand  CommandFunc
 	Log         io.Writer
+	Progress    func(jobs.Progress)
 }
 
 func (e RestorationExecutor) Execute(ctx context.Context, job jobs.Job) error {
@@ -35,6 +36,14 @@ func (e RestorationExecutor) Execute(ctx context.Context, job jobs.Job) error {
 // It lets the TUI keep per-job logs without sharing mutable executor state.
 func (e RestorationExecutor) ExecuteWithLog(ctx context.Context, job jobs.Job, log io.Writer) error {
 	e.Log = log
+	return e.execute(ctx, job)
+}
+
+// ExecuteWithProgress runs one restoration and reports FFmpeg progress while
+// the job is active.
+func (e RestorationExecutor) ExecuteWithProgress(ctx context.Context, job jobs.Job, log io.Writer, progress func(jobs.Progress)) error {
+	e.Log = log
+	e.Progress = progress
 	return e.execute(ctx, job)
 }
 
@@ -65,8 +74,14 @@ func (e RestorationExecutor) execute(ctx context.Context, job jobs.Job) error {
 	if pipe == nil {
 		pipe = RunPipe
 	}
-	if err := pipe(ctx, commands.VapourSynth, commands.Encode, e.Log, io.Discard); err != nil {
-		return err
+	var pipeErr error
+	if e.RunPipe != nil {
+		pipeErr = pipe(ctx, commands.VapourSynth, commands.Encode, e.Log, io.Discard)
+	} else {
+		pipeErr = RunPipeWithProgress(ctx, commands.VapourSynth, commands.Encode, e.Log, io.Discard, e.Progress)
+	}
+	if pipeErr != nil {
+		return pipeErr
 	}
 	run := e.RunCommand
 	if run == nil {
