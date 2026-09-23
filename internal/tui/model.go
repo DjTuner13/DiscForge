@@ -365,6 +365,12 @@ func (m *Model) runNext() tea.Cmd {
 		if m.jobs[i].Status != jobs.Queued {
 			continue
 		}
+		if m.jobs[i].TotalFrames == 0 {
+			if media, err := (probe.Runner{}).Inspect(context.Background(), m.jobs[i].InputPath); err == nil {
+				m.media[m.jobs[i].InputPath] = media
+				m.jobs[i].TotalFrames = estimateFrames(media)
+			}
+		}
 		m.running = true
 		m.jobs[i].Status = jobs.Running
 		m.jobs[i].StartedAt = time.Now()
